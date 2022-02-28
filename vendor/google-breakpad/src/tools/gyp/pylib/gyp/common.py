@@ -39,9 +39,9 @@ def ExceptionAppend(e, msg):
   if not e.args:
     e.args = (msg,)
   elif len(e.args) == 1:
-    e.args = (str(e.args[0]) + ' ' + msg,)
+    e.args = (f'{str(e.args[0])} {msg}', )
   else:
-    e.args = (str(e.args[0]) + ' ' + msg,) + e.args[1:]
+    e.args = (f'{str(e.args[0])} {msg}', ) + e.args[1:]
 
 
 def FindQualifiedTargets(target, qualified_list):
@@ -123,9 +123,9 @@ def QualifiedTarget(build_file, target, toolset):
   # "Qualified" means the file that a target was defined in and the target
   # name, separated by a colon, suffixed by a # and the toolset name:
   # /path/to/file.gyp:target_name#toolset
-  fully_qualified = build_file + ':' + target
+  fully_qualified = f'{build_file}:{target}'
   if toolset:
-    fully_qualified = fully_qualified + '#' + toolset
+    fully_qualified = f'{fully_qualified}#{toolset}'
   return fully_qualified
 
 
@@ -141,10 +141,9 @@ def RelativePath(path, relative_to):
 
   # On Windows, we can't create a relative path to a different drive, so just
   # use the absolute path.
-  if sys.platform == 'win32':
-    if (os.path.splitdrive(path)[0].lower() !=
-        os.path.splitdrive(relative_to)[0].lower()):
-      return path
+  if sys.platform == 'win32' and (os.path.splitdrive(path)[0].lower() !=
+                                  os.path.splitdrive(relative_to)[0].lower()):
+    return path
 
   # Split the paths into components.
   path_split = path.split(os.path.sep)
@@ -182,9 +181,7 @@ def InvertRelativePath(path, toplevel_dir=None):
 
 def FixIfRelativePath(path, relative_to):
   # Like RelativePath but returns |path| unchanged if it is absolute.
-  if os.path.isabs(path):
-    return path
-  return RelativePath(path, relative_to)
+  return path if os.path.isabs(path) else RelativePath(path, relative_to)
 
 
 def UnrelativePath(path, relative_to):
@@ -262,14 +259,8 @@ def EncodePOSIXShellArgument(argument):
   if not isinstance(argument, str):
     argument = str(argument)
 
-  if _quote.search(argument):
-    quote = '"'
-  else:
-    quote = ''
-
-  encoded = quote + re.sub(_escape, r'\\\1', argument) + quote
-
-  return encoded
+  quote = '"' if _quote.search(argument) else ''
+  return quote + re.sub(_escape, r'\\\1', argument) + quote
 
 
 def EncodePOSIXShellList(list):
@@ -279,9 +270,7 @@ def EncodePOSIXShellList(list):
   together using the space character as an argument separator.
   """
 
-  encoded_arguments = []
-  for argument in list:
-    encoded_arguments.append(EncodePOSIXShellArgument(argument))
+  encoded_arguments = [EncodePOSIXShellArgument(argument) for argument in list]
   return ' '.join(encoded_arguments)
 
 
@@ -334,8 +323,9 @@ def WriteOnDiff(filename):
       # Pick temporary file.
       tmp_fd, self.tmp_path = tempfile.mkstemp(
           suffix='.tmp',
-          prefix=os.path.split(filename)[1] + '.gyp.',
-          dir=os.path.split(filename)[0])
+          prefix=f'{os.path.split(filename)[1]}.gyp.',
+          dir=os.path.split(filename)[0],
+      )
       try:
         self.tmp_file = os.fdopen(tmp_fd, 'wb')
       except Exception:
@@ -477,7 +467,7 @@ class CycleError(Exception):
   def __init__(self, nodes):
     self.nodes = nodes
   def __str__(self):
-    return 'CycleError: cycle involving: ' + str(self.nodes)
+    return f'CycleError: cycle involving: {str(self.nodes)}'
 
 
 def TopologicallySorted(graph, get_edges):

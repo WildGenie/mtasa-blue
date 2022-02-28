@@ -78,8 +78,10 @@ class GTestXMLTestCase(gtest_test_utils.TestCase):
     expected_attributes = expected_node.attributes
     actual_attributes   = actual_node  .attributes
     self.assertEquals(
-        expected_attributes.length, actual_attributes.length,
-        "attribute numbers differ in element " + actual_node.tagName)
+        expected_attributes.length,
+        actual_attributes.length,
+        f"attribute numbers differ in element {actual_node.tagName}",
+    )
     for i in range(expected_attributes.length):
       expected_attr = expected_attributes.item(i)
       actual_attr   = actual_attributes.get(expected_attr.name)
@@ -94,8 +96,10 @@ class GTestXMLTestCase(gtest_test_utils.TestCase):
     expected_children = self._GetChildren(expected_node)
     actual_children = self._GetChildren(actual_node)
     self.assertEquals(
-        len(expected_children), len(actual_children),
-        "number of child elements differ in element " + actual_node.tagName)
+        len(expected_children),
+        len(actual_children),
+        f"number of child elements differ in element {actual_node.tagName}",
+    )
     for child_id, child in expected_children.iteritems():
       self.assert_(child_id in actual_children,
                    '<%s> is not in <%s> (in element %s)' %
@@ -131,13 +135,12 @@ class GTestXMLTestCase(gtest_test_utils.TestCase):
         self.assert_(childID not in children)
         children[childID] = child
       elif child.nodeType in [Node.TEXT_NODE, Node.CDATA_SECTION_NODE]:
-        if "detail" not in children:
-          if (child.nodeType == Node.CDATA_SECTION_NODE or
-              not child.nodeValue.isspace()):
-            children["detail"] = child.ownerDocument.createCDATASection(
-                child.nodeValue)
-        else:
+        if "detail" in children:
           children["detail"].nodeValue += child.nodeValue
+        elif (child.nodeType == Node.CDATA_SECTION_NODE or
+              not child.nodeValue.isspace()):
+          children["detail"] = child.ownerDocument.createCDATASection(
+              child.nodeValue)
       else:
         self.fail("Encountered unexpected node type %d" % child.nodeType)
     return children

@@ -237,12 +237,7 @@ class RepeatedCompositeContainer(object):
     raise TypeError('unhashable object')
 
   def sort(self, sort_function=cmp):
-    messages = []
-    for index in range(len(self)):
-      # messages[i][0] is where the i-th element of the new array has to come
-      # from.
-      # messages[i][1] is where the i-th element of the old array has to go.
-      messages.append([index, 0, self[index]])
+    messages = [[index, 0, self[index]] for index in range(len(self))]
     messages.sort(lambda x,y: sort_function(x[2], y[2]))
 
     # Remember which position each elements has to move to.
@@ -612,5 +607,5 @@ def _AddPropertiesForExtensions(message_descriptor, cls):
   """Adds properties for all fields in this protocol message type."""
   extension_dict = message_descriptor.extensions_by_name
   for extension_name, extension_field in extension_dict.iteritems():
-    constant_name = extension_name.upper() + '_FIELD_NUMBER'
+    constant_name = f'{extension_name.upper()}_FIELD_NUMBER'
     setattr(cls, constant_name, extension_field.number)

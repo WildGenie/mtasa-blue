@@ -153,15 +153,12 @@ def _GetGtestBuildDir(injected_os, script_dir, config):
 def _GetConfigFromBuildDir(build_dir):
   """Extracts the configuration name from the build directory."""
 
-  # We don't want to depend on build_dir containing the correct path
-  # separators.
-  m = re.match(r'.*[\\/]([^\\/]+)[\\/][^\\/]+[\\/]scons[\\/]?$', build_dir)
-  if m:
+  if m := re.match(r'.*[\\/]([^\\/]+)[\\/][^\\/]+[\\/]scons[\\/]?$',
+                   build_dir):
     return m.group(1)
-  else:
-    print >>sys.stderr, ('%s is an invalid build directory that does not '
-                         'correspond to any configuration.' % (build_dir,))
-    return ''
+  print >>sys.stderr, ('%s is an invalid build directory that does not '
+                       'correspond to any configuration.' % (build_dir,))
+  return ''
 
 
 # All paths in this script are either absolute or relative to the current

@@ -135,7 +135,7 @@ def GetIncludedBuildFiles(build_file_path, aux_data, included=None):
   in the list will be relative to the current directory.
   """
 
-  if included == None:
+  if included is None:
     included = []
 
   if build_file_path in included:
@@ -266,7 +266,7 @@ def LoadBuildFileIncludesIntoDict(subdict, subdict_path, data, aux_data,
 
   # Merge in the included files.
   for include in includes_list:
-    if not 'included' in aux_data[subdict_path]:
+    if 'included' not in aux_data[subdict_path]:
       aux_data[subdict_path]['included'] = []
     aux_data[subdict_path]['included'].append(include)
 

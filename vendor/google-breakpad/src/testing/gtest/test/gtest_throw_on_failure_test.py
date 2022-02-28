@@ -110,11 +110,7 @@ class ThrowOnFailureTest(gtest_test_utils.TestCase):
     if flag:
       command.append(flag)
 
-    if should_fail:
-      should_or_not = 'should'
-    else:
-      should_or_not = 'should not'
-
+    should_or_not = 'should' if should_fail else 'should not'
     failed = not Run(command)
 
     SetEnvVar(THROW_ON_FAILURE, None)

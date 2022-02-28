@@ -100,7 +100,7 @@ def NormjoinPathForceCMakeSource(base_path, rel_path):
   """
   if os.path.isabs(rel_path):
     return rel_path
-  if any([rel_path.startswith(var) for var in FULL_PATH_VARS]):
+  if any(rel_path.startswith(var) for var in FULL_PATH_VARS):
     return rel_path
   # TODO: do we need to check base_path for absolute variables as well?
   return os.path.join('${CMAKE_SOURCE_DIR}',
@@ -260,19 +260,19 @@ def WriteActions(target_name, actions, extra_sources, extra_deps,
     action_target_name = '%s__%s' % (target_name, action_name)
 
     inputs = action['inputs']
-    inputs_name = action_target_name + '__input'
+    inputs_name = f'{action_target_name}__input'
     SetVariableList(output, inputs_name,
         [NormjoinPathForceCMakeSource(path_to_gyp, dep) for dep in inputs])
 
     outputs = action['outputs']
     cmake_outputs = [NormjoinPathForceCMakeSource(path_to_gyp, out)
                      for out in outputs]
-    outputs_name = action_target_name + '__output'
+    outputs_name = f'{action_target_name}__output'
     SetVariableList(output, outputs_name, cmake_outputs)
 
     # Build up a list of outputs.
     # Collect the output dirs we'll need.
-    dirs = set(dir for dir in (os.path.dirname(o) for o in outputs) if dir)
+    dirs = {dir for dir in (os.path.dirname(o) for o in outputs) if dir}
 
     if int(action.get('process_outputs_as_sources', False)):
       extra_sources.extend(zip(cmake_outputs, outputs))
@@ -282,7 +282,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps,
     WriteVariable(output, outputs_name)
     output.write('\n')
 
-    if len(dirs) > 0:
+    if dirs:
       for directory in dirs:
         output.write('  COMMAND ${CMAKE_COMMAND} -E make_directory ')
         output.write(directory)
@@ -323,9 +323,10 @@ def WriteActions(target_name, actions, extra_sources, extra_deps,
 
 
 def NormjoinRulePathForceCMakeSource(base_path, rel_path, rule_source):
-  if rel_path.startswith(("${RULE_INPUT_PATH}","${RULE_INPUT_DIRNAME}")):
-    if any([rule_source.startswith(var) for var in FULL_PATH_VARS]):
-      return rel_path
+  if rel_path.startswith(
+      ("${RULE_INPUT_PATH}", "${RULE_INPUT_DIRNAME}")) and any(
+          rule_source.startswith(var) for var in FULL_PATH_VARS):
+    return rel_path
   return NormjoinPathForceCMakeSource(base_path, rel_path)
 
 
@@ -342,17 +343,17 @@ def WriteRules(target_name, rules, extra_sources, extra_deps,
         the Gyp file in which the target being generated is defined.
   """
   for rule in rules:
-    rule_name = StringToCMakeTargetName(target_name + '__' + rule['rule_name'])
+    rule_name = StringToCMakeTargetName(f'{target_name}__' + rule['rule_name'])
 
     inputs = rule.get('inputs', [])
-    inputs_name = rule_name + '__input'
+    inputs_name = f'{rule_name}__input'
     SetVariableList(output, inputs_name,
         [NormjoinPathForceCMakeSource(path_to_gyp, dep) for dep in inputs])
     outputs = rule['outputs']
     var_outputs = []
 
     for count, rule_source in enumerate(rule.get('rule_sources', [])):
-      action_name = rule_name + '_' + str(count)
+      action_name = f'{rule_name}_{str(count)}'
 
       rule_source_dirname, rule_source_basename = os.path.split(rule_source)
       rule_source_root, rule_source_ext = os.path.splitext(rule_source_basename)
@@ -365,12 +366,12 @@ def WriteRules(target_name, rules, extra_sources, extra_deps,
 
       # Build up a list of outputs.
       # Collect the output dirs we'll need.
-      dirs = set(dir for dir in (os.path.dirname(o) for o in outputs) if dir)
+      dirs = {dir for dir in (os.path.dirname(o) for o in outputs) if dir}
 
       # Create variables for the output, as 'local' variable will be unset.
       these_outputs = []
       for output_index, out in enumerate(outputs):
-        output_name = action_name + '_' + str(output_index)
+        output_name = f'{action_name}_{str(output_index)}'
         SetVariable(output, output_name,
                      NormjoinRulePathForceCMakeSource(path_to_gyp, out,
                                                       rule_source))
@@ -557,7 +558,7 @@ def CreateCMakeTargetBaseName(qualified_target):
       gyp.common.ParseQualifiedTarget(qualified_target))
   cmake_target_base_name = gyp_target_name
   if gyp_target_toolset and gyp_target_toolset != 'target':
-    cmake_target_base_name += '_' + gyp_target_toolset
+    cmake_target_base_name += f'_{gyp_target_toolset}'
   return StringToCMakeTargetName(cmake_target_base_name)
 
 
@@ -565,9 +566,9 @@ def CreateCMakeTargetFullName(qualified_target):
   """An unambiguous name for the target."""
   gyp_file, gyp_target_name, gyp_target_toolset = (
       gyp.common.ParseQualifiedTarget(qualified_target))
-  cmake_target_full_name = gyp_file + ':' + gyp_target_name
+  cmake_target_full_name = f'{gyp_file}:{gyp_target_name}'
   if gyp_target_toolset and gyp_target_toolset != 'target':
-    cmake_target_full_name += '_' + gyp_target_toolset
+    cmake_target_full_name += f'_{gyp_target_toolset}'
   return StringToCMakeTargetName(cmake_target_full_name)
 
 
@@ -1036,52 +1037,50 @@ def GenerateOutputForConfig(target_list, target_dicts, data,
   output_file = os.path.join(toplevel_build, 'CMakeLists.txt')
   gyp.common.EnsureDirExists(output_file)
 
-  output = open(output_file, 'w')
-  output.write('cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)\n')
-  output.write('cmake_policy(VERSION 2.8.8)\n')
+  with open(output_file, 'w') as output:
+    output.write('cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)\n')
+    output.write('cmake_policy(VERSION 2.8.8)\n')
 
-  _, project_target, _ = gyp.common.ParseQualifiedTarget(target_list[-1])
-  output.write('project(')
-  output.write(project_target)
-  output.write(')\n')
+    _, project_target, _ = gyp.common.ParseQualifiedTarget(target_list[-1])
+    output.write('project(')
+    output.write(project_target)
+    output.write(')\n')
 
-  SetVariable(output, 'configuration', config_to_use)
+    SetVariable(output, 'configuration', config_to_use)
 
-  # The following appears to be as-yet undocumented.
-  # http://public.kitware.com/Bug/view.php?id=8392
-  output.write('enable_language(ASM)\n')
-  # ASM-ATT does not support .S files.
-  # output.write('enable_language(ASM-ATT)\n')
+    # The following appears to be as-yet undocumented.
+    # http://public.kitware.com/Bug/view.php?id=8392
+    output.write('enable_language(ASM)\n')
+    # ASM-ATT does not support .S files.
+    # output.write('enable_language(ASM-ATT)\n')
 
-  SetVariable(output, 'builddir', '${CMAKE_BINARY_DIR}')
-  SetVariable(output, 'obj', '${builddir}/obj')
-  output.write('\n')
+    SetVariable(output, 'builddir', '${CMAKE_BINARY_DIR}')
+    SetVariable(output, 'obj', '${builddir}/obj')
+    output.write('\n')
 
-  # TODO: Undocumented/unsupported (the CMake Java generator depends on it).
-  # CMake by default names the object resulting from foo.c to be foo.c.o.
-  # Gyp traditionally names the object resulting from foo.c foo.o.
-  # This should be irrelevant, but some targets extract .o files from .a
-  # and depend on the name of the extracted .o files.
-  output.write('set(CMAKE_C_OUTPUT_EXTENSION_REPLACE 1)\n')
-  output.write('set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)\n')
-  output.write('\n')
+    # TODO: Undocumented/unsupported (the CMake Java generator depends on it).
+    # CMake by default names the object resulting from foo.c to be foo.c.o.
+    # Gyp traditionally names the object resulting from foo.c foo.o.
+    # This should be irrelevant, but some targets extract .o files from .a
+    # and depend on the name of the extracted .o files.
+    output.write('set(CMAKE_C_OUTPUT_EXTENSION_REPLACE 1)\n')
+    output.write('set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)\n')
+    output.write('\n')
 
-  namer = CMakeNamer(target_list)
+    namer = CMakeNamer(target_list)
 
-  # The list of targets upon which the 'all' target should depend.
-  # CMake has it's own implicit 'all' target, one is not created explicitly.
-  all_qualified_targets = set()
-  for build_file in params['build_files']:
-    for qualified_target in gyp.common.AllTargets(target_list,
-                                                  target_dicts,
-                                                  os.path.normpath(build_file)):
-      all_qualified_targets.add(qualified_target)
+    # The list of targets upon which the 'all' target should depend.
+    # CMake has it's own implicit 'all' target, one is not created explicitly.
+    all_qualified_targets = set()
+    for build_file in params['build_files']:
+      for qualified_target in gyp.common.AllTargets(target_list,
+                                                    target_dicts,
+                                                    os.path.normpath(build_file)):
+        all_qualified_targets.add(qualified_target)
 
-  for qualified_target in target_list:
-    WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
-                options, generator_flags, all_qualified_targets, output)
-
-  output.close()
+    for qualified_target in target_list:
+      WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
+                  options, generator_flags, all_qualified_targets, output)
 
 
 def PerformBuild(data, configurations, params):

@@ -355,7 +355,7 @@ def _AddPropertiesForField(field, cls):
   # handle specially here.
   assert _FieldDescriptor.MAX_CPPTYPE == 10
 
-  constant_name = field.name.upper() + "_FIELD_NUMBER"
+  constant_name = f'{field.name.upper()}_FIELD_NUMBER'
   setattr(cls, constant_name, field.number)
 
   if field.label == _FieldDescriptor.LABEL_REPEATED:
@@ -497,7 +497,7 @@ def _AddPropertiesForExtensions(descriptor, cls):
   """Adds properties for all fields in this protocol message type."""
   extension_dict = descriptor.extensions_by_name
   for extension_name, extension_field in extension_dict.iteritems():
-    constant_name = extension_name.upper() + "_FIELD_NUMBER"
+    constant_name = f'{extension_name.upper()}_FIELD_NUMBER'
     setattr(cls, constant_name, extension_field.number)
 
 
@@ -573,11 +573,10 @@ def _AddHasFieldMethod(message_descriptor, cls):
       raise ValueError(
           'Protocol message has no singular "%s" field.' % field_name)
 
-    if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
-      value = self._fields.get(field)
-      return value is not None and value._is_present_in_parent
-    else:
+    if field.cpp_type != _FieldDescriptor.CPPTYPE_MESSAGE:
       return field in self._fields
+    value = self._fields.get(field)
+    return value is not None and value._is_present_in_parent
   cls.HasField = HasField
 
 
@@ -631,11 +630,10 @@ def _AddHasExtensionMethod(cls):
     if extension_handle.label == _FieldDescriptor.LABEL_REPEATED:
       raise KeyError('"%s" is repeated.' % extension_handle.full_name)
 
-    if extension_handle.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
-      value = self._fields.get(extension_handle)
-      return value is not None and value._is_present_in_parent
-    else:
+    if extension_handle.cpp_type != _FieldDescriptor.CPPTYPE_MESSAGE:
       return extension_handle in self._fields
+    value = self._fields.get(extension_handle)
+    return value is not None and value._is_present_in_parent
   cls.HasExtension = HasExtension
 
 
@@ -706,10 +704,9 @@ def _AddByteSizeMethod(message_descriptor, cls):
     if not self._cached_byte_size_dirty:
       return self._cached_byte_size
 
-    size = 0
-    for field_descriptor, field_value in self.ListFields():
-      size += field_descriptor._sizer(field_value)
-
+    size = sum(
+        field_descriptor._sizer(field_value)
+        for field_descriptor, field_value in self.ListFields())
     self._cached_byte_size = size
     self._cached_byte_size_dirty = False
     self._listener_for_children.dirty = False
@@ -837,19 +834,13 @@ def _AddIsInitializedMethod(message_descriptor, cls):
       the top-level message, e.g. "foo.bar[5].baz".
     """
 
-    errors = []  # simplify things
-
-    for field in required_fields:
-      if not self.HasField(field.name):
-        errors.append(field.name)
+    errors = [
+        field.name for field in required_fields if not self.HasField(field.name)
+    ]
 
     for field, value in self.ListFields():
       if field.cpp_type == _FieldDescriptor.CPPTYPE_MESSAGE:
-        if field.is_extension:
-          name = "(%s)" % field.full_name
-        else:
-          name = field.name
-
+        name = "(%s)" % field.full_name if field.is_extension else field.name
         if field.label == _FieldDescriptor.LABEL_REPEATED:
           for i in xrange(len(value)):
             element = value[i]
@@ -857,7 +848,7 @@ def _AddIsInitializedMethod(message_descriptor, cls):
             sub_errors = element.FindInitializationErrors()
             errors += [ prefix + error for error in sub_errors ]
         else:
-          prefix = name + "."
+          prefix = f'{name}.'
           sub_errors = value.FindInitializationErrors()
           errors += [ prefix + error for error in sub_errors ]
 
@@ -881,22 +872,15 @@ def _AddMergeFromMethod(cls):
     fields = self._fields
 
     for field, value in msg._fields.iteritems():
-      if field.label == LABEL_REPEATED:
+      if (field.label != LABEL_REPEATED and field.cpp_type == CPPTYPE_MESSAGE
+          and value._is_present_in_parent or field.label == LABEL_REPEATED):
         field_value = fields.get(field)
         if field_value is None:
           # Construct a new object to represent this field.
           field_value = field._default_constructor(self)
           fields[field] = field_value
         field_value.MergeFrom(value)
-      elif field.cpp_type == CPPTYPE_MESSAGE:
-        if value._is_present_in_parent:
-          field_value = fields.get(field)
-          if field_value is None:
-            # Construct a new object to represent this field.
-            field_value = field._default_constructor(self)
-            fields[field] = field_value
-          field_value.MergeFrom(value)
-      else:
+      elif field.cpp_type != CPPTYPE_MESSAGE:
         self._fields[field] = value
   cls.MergeFrom = MergeFrom
 

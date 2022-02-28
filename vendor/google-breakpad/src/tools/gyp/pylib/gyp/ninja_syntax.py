@@ -25,7 +25,7 @@ class Writer(object):
 
     def comment(self, text):
         for line in textwrap.wrap(text, self.width - 2):
-            self.output.write('# ' + line + '\n')
+            self.output.write(f'# {line}' + '\n')
 
     def variable(self, key, value, indent=0):
         if value is None:
@@ -136,7 +136,7 @@ class Writer(object):
                 # Give up on breaking.
                 break
 
-            self.output.write(leading_space + text[0:space] + ' $\n')
+            self.output.write(leading_space + text[:space] + ' $\n')
             text = text[space+1:]
 
             # Subsequent lines are continuations, so indent them.

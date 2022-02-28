@@ -129,9 +129,7 @@ def _SimpleSizer(compute_value_size):
     if is_packed:
       local_VarintSize = _VarintSize
       def PackedFieldSize(value):
-        result = 0
-        for element in value:
-          result += compute_value_size(element)
+        result = sum(compute_value_size(element) for element in value)
         return result + local_VarintSize(result) + tag_size
       return PackedFieldSize
     elif is_repeated:
@@ -158,9 +156,7 @@ def _ModifiedSizer(compute_value_size, modify_value):
     if is_packed:
       local_VarintSize = _VarintSize
       def PackedFieldSize(value):
-        result = 0
-        for element in value:
-          result += compute_value_size(modify_value(element))
+        result = sum(compute_value_size(modify_value(element)) for element in value)
         return result + local_VarintSize(result) + tag_size
       return PackedFieldSize
     elif is_repeated:
@@ -412,9 +408,7 @@ def _SimpleEncoder(wire_type, encode_value, compute_value_size):
       local_EncodeVarint = _EncodeVarint
       def EncodePackedField(write, value):
         write(tag_bytes)
-        size = 0
-        for element in value:
-          size += compute_value_size(element)
+        size = sum(compute_value_size(element) for element in value)
         local_EncodeVarint(write, size)
         for element in value:
           encode_value(write, element)
@@ -446,9 +440,7 @@ def _ModifiedEncoder(wire_type, encode_value, compute_value_size, modify_value):
       local_EncodeVarint = _EncodeVarint
       def EncodePackedField(write, value):
         write(tag_bytes)
-        size = 0
-        for element in value:
-          size += compute_value_size(modify_value(element))
+        size = sum(compute_value_size(modify_value(element)) for element in value)
         local_EncodeVarint(write, size)
         for element in value:
           encode_value(write, modify_value(element))

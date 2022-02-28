@@ -74,7 +74,7 @@ def _ConstructContentList(xml_parts, specification, pretty, level=0):
   if not isinstance(name, str):
     raise Exception('The first item of an EasyXml specification should be '
                     'a string.  Specification was ' + str(specification))
-  xml_parts.append(indentation + '<' + name)
+  xml_parts.append(f'{indentation}<{name}')
 
   # Optionally in second position is a dictionary of the attributes.
   rest = specification[1:]
@@ -118,17 +118,15 @@ def WriteXmlIfChanged(content, path, encoding='utf-8', pretty=False,
 
   # Get the old content
   try:
-    f = open(path, 'r')
-    existing = f.read()
-    f.close()
+    with open(path, 'r') as f:
+      existing = f.read()
   except:
     existing = None
 
   # It has changed, write it
   if existing != xml_string:
-    f = open(path, 'w')
-    f.write(xml_string)
-    f.close()
+    with open(path, 'w') as f:
+      f.write(xml_string)
 
 
 _xml_escape_map = {

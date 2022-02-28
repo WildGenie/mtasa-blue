@@ -141,7 +141,7 @@ class _Boolean(_Type):
   """Boolean settings, can have the values 'false' or 'true'."""
 
   def _Validate(self, value):
-    if value != 'true' and value != 'false':
+    if value not in ['true', 'false']:
       raise ValueError('expected bool; got %r' % value)
 
   def ValidateMSVS(self, value):
@@ -171,7 +171,7 @@ class _Integer(_Type):
     int(value, self._msbuild_base)
 
   def ConvertToMSBuild(self, value):
-    msbuild_format = (self._msbuild_base == 10) and '%d' or '0x%04x'
+    msbuild_format = '%d' if self._msbuild_base == 10 else '0x%04x'
     return msbuild_format % int(value)
 
 
@@ -191,8 +191,8 @@ class _Enumeration(_Type):
   def __init__(self, label_list, new=None):
     _Type.__init__(self)
     self._label_list = label_list
-    self._msbuild_values = set(value for value in label_list
-                               if value is not None)
+    self._msbuild_values = {value for value in label_list
+                                 if value is not None}
     if new is not None:
       self._msbuild_values.update(new)
 
@@ -386,8 +386,7 @@ def _ValidateExclusionSetting(setting, settings, error_msg, stderr=sys.stderr):
   # This may be unrecognized because it's an exclusion list. If the
   # setting name has the _excluded suffix, then check the root name.
   unrecognized = True
-  m = re.match(_EXCLUDED_SUFFIX_RE, setting)
-  if m:
+  if m := re.match(_EXCLUDED_SUFFIX_RE, setting):
     root_setting = m.group(1)
     unrecognized = root_setting not in settings
 

@@ -39,13 +39,13 @@ def upload(file, project_name, user_name, password, summary, labels=None):
 	# is in the full user@domain form, strip it down.
 	if user_name.endswith('@gmail.com'):
 		user_name = user_name[:user_name.index('@gmail.com')]
-	
+
 	form_fields = [('summary', summary)]
 	if labels is not None:
 		form_fields.extend([('label', l.strip()) for l in labels])
-	
+
 	content_type, body = encode_upload_request(form_fields, file)
-	
+
 	upload_host = '%s.googlecode.com' % project_name
 	upload_uri = '/files'
 	auth_token = base64.b64encode('%s:%s'% (user_name, password))
@@ -54,16 +54,13 @@ def upload(file, project_name, user_name, password, summary, labels=None):
 		'User-Agent': 'Googlecode.com uploader v0.9.4',
 		'Content-Type': content_type,
 		}
-	
+
 	server = httplib.HTTPSConnection(upload_host)
 	server.request('POST', upload_uri, body, headers)
 	resp = server.getresponse()
 	server.close()
-	
-	if resp.status == 201:
-		location = resp.getheader('Location', None)
-	else:
-		location = None
+
+	location = resp.getheader('Location', None) if resp.status == 201 else None
 	return resp.status, resp.reason, location
 
 #Google's upload function's encoding function
@@ -78,37 +75,32 @@ def encode_upload_request(fields, file_path):
 	"""
 	BOUNDARY = '----------Googlecode_boundary_reindeer_flotilla'
 	CRLF = '\r\n'
-	
+
 	body = []
-	
+
 	# Add the metadata about the upload first
 	for key, value in fields:
-		body.extend(
-			['--' + BOUNDARY,
-			 'Content-Disposition: form-data; name="%s"' % key,
-			 '',
-			 value,
-			 ])
-	
+		body.extend([
+		    f'--{BOUNDARY}',
+		    'Content-Disposition: form-data; name="%s"' % key,
+		    '',
+		    value,
+		])
+
 	# Now add the file itself
 	file_name = os.path.basename(file_path)
-	f = open(file_path, 'rb')
-	file_content = f.read()
-	f.close()
-	
-	body.extend(
-		['--' + BOUNDARY,
-		 'Content-Disposition: form-data; name="filename"; filename="%s"'
-		 % file_name,
-		 # The upload server determines the mime-type, no need to set it.
-		 'Content-Type: application/octet-stream',
-		 '',
-		 file_content,
-		 ])
-	
-	# Finalize the form body
-	body.extend(['--' + BOUNDARY + '--', ''])
-	
+	with open(file_path, 'rb') as f:
+		file_content = f.read()
+	body.extend([
+	    f'--{BOUNDARY}',
+	    'Content-Disposition: form-data; name="filename"; filename="%s"' %
+	    file_name,
+	    'Content-Type: application/octet-stream',
+	    '',
+	    file_content,
+	    f'--{BOUNDARY}--',
+	    '',
+	])
 	return 'multipart/form-data; boundary=%s' % BOUNDARY, CRLF.join(body)
 
 #Function to print messages to screen
@@ -143,7 +135,7 @@ def localCmd(cmdStr,cwd=None):
 def main():
 	#Variables
 	SVNURL = "http://multitheftauto-resources.googlecode.com/svn/trunk/"
-	
+
 	#Command line args
 	parser = optparse.OptionParser(version="%prog 1.2")
 	parser.add_option("-l","--logfile",dest="logfile",metavar="FILE",type="string",default="",help="Log text to specified FILE.")
@@ -151,7 +143,7 @@ def main():
 	parser.add_option("-u","--user",dest="guser",metavar="USER",type="string",default="",help="Username to access google project.")
 	parser.add_option("-p","--password",dest="gpasswd",metavar="PASSWD",type="string",default="",help="googlecode.com password.")
 	(opts,args) = parser.parse_args()
-	
+
 	#Enable logging if requested
 	if opts.logfile != "":
 		#enable logging
@@ -160,7 +152,7 @@ def main():
 	else:
 		#disable logging
 		logging.disable(logging.critical)
-	
+
 	#Sanity check
 	if opts.gproject == "":
 		error("Google project name not set, for more information do %s -h"%sys.argv[0])
@@ -168,10 +160,10 @@ def main():
 		error("Google account username not set, for more information do %s -h"%sys.argv[0])
 	if opts.gpasswd == "":
 		error("Googlecode.com password not set, for more information do %s -h"%sys.argv[0])
-	
+
 	#Generate a temporary directory for holding SVN files
 	tmpSvnDir = tempfile.mkdtemp()
-	
+
 	#SVN Checkout
 	echo("Checking out SVN to %s"%tmpSvnDir)
 	svnResults = localCmd("svn co %s"%SVNURL,tmpSvnDir)
@@ -179,10 +171,10 @@ def main():
 		error("Error occured when checking out SVN.")
 	else:
 		svnRevision = int(svnResults[1].splitlines()[-1].split(" ")[-1][:-1]) #really ugly I know, but avoids the overhead of regexp for just this one thing
-	
+
 	#Walk SVN checkout directory and eliminate any .svn directories
 	echo("Walking checked out directory and deleting .svn directories...")
-	nukeList = list() #this will hold a list (array) of .svn directories (absolute paths) which will be deleted
+	nukeList = []
 	#walk the svn checkout directory, looking for .svn dirs
 	for root,dirs,files in os.walk(tmpSvnDir):
 		if ".svn" in dirs:
@@ -204,7 +196,7 @@ def main():
 	for dir in nukeList:
 		logging.debug("Removing %s"%dir)
 		shutil.rmtree(dir)
-	
+
 	#Merge the three root directories into one by moving files/dirs up one directory
 	for rootDir in os.listdir(os.path.join(tmpSvnDir,"trunk")):
 		for subDir in os.listdir(os.path.join(os.path.join(tmpSvnDir,"trunk"),rootDir)):
@@ -217,11 +209,11 @@ def main():
 	trunkPath = os.path.join(tmpSvnDir,"trunk")
 	logging.debug("Removing empty directory tree %s"%trunkPath)
 	shutil.rmtree(trunkPath)
-	
+
 	#Generate a temporary zipfile path
 	tmpZipFileDir = tempfile.mkdtemp()
 	tmpZipFile = os.path.join(tmpZipFileDir,"multitheftauto_resources-r%d.zip"%svnRevision)
-	
+
 	#Archive files into a zip file
 	echo("Archiving to %s"%tmpZipFile)
 	zipFileHandle = zipfile.ZipFile(tmpZipFile,'w',zipfile.ZIP_DEFLATED) #ZIP_DEFLATED means to compress, the alternative is ZIP_STORED
@@ -231,7 +223,7 @@ def main():
 			logging.debug("Adding %s to zip file."%absPathToFile)
 			zipFileHandle.write(absPathToFile,os.path.relpath(absPathToFile,tmpSvnDir))
 	zipFileHandle.close()
-	
+
 	#Upload zip to googlecode
 	echo("Uploading zip file to project %s"%opts.gproject)
 	summary = "Latest Multi Theft Auto resources (revision %d) (required to run)"%svnRevision
@@ -251,6 +243,6 @@ if __name__ == "__main__":
 		#Print footer
 		timeEnd = datetime.datetime.now()
 		timeDelta = timeEnd - timeStart
-		echo("Completed running script in "+str(timeDelta)+".")
+		echo(f"Completed running script in {str(timeDelta)}.")
 	except KeyboardInterrupt:
 		echo('Control-C')

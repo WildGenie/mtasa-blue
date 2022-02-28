@@ -56,10 +56,10 @@ def EncodeRspFileList(args):
   if not args: return ''
   if args[0].startswith('call '):
     call, program = args[0].split(' ', 1)
-    program = call + ' ' + os.path.normpath(program)
+    program = f'{call} {os.path.normpath(program)}'
   else:
     program = os.path.normpath(args[0])
-  return program + ' ' + ' '.join(QuoteForRspFile(arg) for arg in args[1:])
+  return f'{program} ' + ' '.join(QuoteForRspFile(arg) for arg in args[1:])
 
 
 def _GenericRetrieve(root, default, path):
@@ -77,7 +77,7 @@ def _AddPrefix(element, prefix):
   if element is None:
     return element
   # Note, not Iterable because we don't want to handle strings like that.
-  if isinstance(element, list) or isinstance(element, tuple):
+  if isinstance(element, (list, tuple)):
     return [prefix + e for e in element]
   else:
     return prefix + element
@@ -89,7 +89,7 @@ def _DoRemapping(element, map):
   if map is not None and element is not None:
     if not callable(map):
       map = map.get # Assume it's a dict, otherwise a callable to do the remap.
-    if isinstance(element, list) or isinstance(element, tuple):
+    if isinstance(element, (list, tuple)):
       element = filter(None, [map(elem) for elem in element])
     else:
       element = map(element)
@@ -100,13 +100,12 @@ def _AppendOrReturn(append, element):
   """If |append| is None, simply return |element|. If |append| is not None,
   then add |element| to it, adding each item in |element| if it's a list or
   tuple."""
-  if append is not None and element is not None:
-    if isinstance(element, list) or isinstance(element, tuple):
-      append.extend(element)
-    else:
-      append.append(element)
-  else:
+  if append is None or element is None:
     return element
+  if isinstance(element, (list, tuple)):
+    append.extend(element)
+  else:
+    append.append(element)
 
 
 def _FindDirectXInstallation():
@@ -182,7 +181,7 @@ class MsvsSettings(object):
     target_platform = 'Win32' if self.GetArch(config) == 'x86' else 'x64'
     target_name = self.spec.get('product_prefix', '') + \
         self.spec.get('product_name', self.spec['target_name'])
-    target_dir = base_to_build + '\\' if base_to_build else ''
+    target_dir = f'{base_to_build}\\' if base_to_build else ''
     replacements = {
         '$(OutDir)\\': target_dir,
         '$(TargetDir)\\': target_dir,
@@ -204,8 +203,8 @@ class MsvsSettings(object):
     # set. This happens when the SDK is sync'd via src-internal, rather than
     # by typical end-user installation of the SDK. If it's not set, we don't
     # want to leave the unexpanded variable in the path, so simply strip it.
-    replacements['$(DXSDK_DIR)'] = self.dxsdk_dir if self.dxsdk_dir else ''
-    replacements['$(WDK_DIR)'] = self.wdk_dir if self.wdk_dir else ''
+    replacements['$(DXSDK_DIR)'] = self.dxsdk_dir or ''
+    replacements['$(WDK_DIR)'] = self.wdk_dir or ''
     return replacements
 
   def ConvertVSMacros(self, s, base_to_build=None, config=None):
@@ -216,7 +215,7 @@ class MsvsSettings(object):
   def AdjustLibraries(self, libraries):
     """Strip -l from library if it's specified with that."""
     libs = [lib[2:] if lib.startswith('-l') else lib for lib in libraries]
-    return [lib + '.lib' if not lib.endswith('.lib') else lib for lib in libs]
+    return [f'{lib}.lib' if not lib.endswith('.lib') else lib for lib in libs]
 
   def _GetAndMunge(self, field, path, default, prefix, append, map):
     """Retrieve a value from |field| at |path| or return |default|. If
@@ -348,8 +347,7 @@ class MsvsSettings(object):
   def GetCflags(self, config):
     """Returns the flags that need to be added to .c and .cc compilations."""
     config = self._TargetConfig(config)
-    cflags = []
-    cflags.extend(['/wd' + w for w in self.msvs_disabled_warnings[config]])
+    cflags = [f'/wd{w}' for w in self.msvs_disabled_warnings[config]]
     cl = self._GetWrapper(self, self.msvs_settings[config],
                           'VCCLCompilerTool', append=cflags)
     cl('Optimization',
@@ -381,8 +379,8 @@ class MsvsSettings(object):
     cl('AdditionalOptions', prefix='')
     cl('EnableEnhancedInstructionSet',
        map={'1': 'SSE', '2': 'SSE2', '3': 'AVX', '4': 'IA32'}, prefix='/arch:')
-    cflags.extend(['/FI' + f for f in self._Setting(
-        ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
+    cflags.extend([f'/FI{f}' for f in self._Setting(
+          ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
     if self.vs_version.short_name in ('2013', '2013e'):
       # New flag required in 2013 to maintain previous PDB behavior.
       cflags.append('/FS')
@@ -401,7 +399,7 @@ class MsvsSettings(object):
       source_ext = os.path.splitext(self.msvs_precompiled_source[config])[1]
       if _LanguageMatchesForPch(source_ext, extension):
         pch = os.path.split(self.msvs_precompiled_header[config])[1]
-        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pch + '.pch']
+        return [f'/Yu{pch}', f'/FI{pch}', '/Fp${pchprefix}.' + pch + '.pch']
     return  []
 
   def GetCflagsC(self, config):
@@ -452,8 +450,7 @@ class MsvsSettings(object):
   def _GetDefFileAsLdflags(self, ldflags, gyp_to_build_path):
     """.def files get implicitly converted to a ModuleDefinitionFile for the
     linker in the VS generator. Emulate that behaviour here."""
-    def_file = self.GetDefFile(gyp_to_build_path)
-    if def_file:
+    if def_file := self.GetDefFile(gyp_to_build_path):
       ldflags.append('/DEF:"%s"' % def_file)
 
   def GetPGDName(self, config, expand_special):
@@ -483,25 +480,21 @@ class MsvsSettings(object):
     ld('DelayLoadDLLs', prefix='/DELAYLOAD:')
     ld('TreatLinkerWarningAsErrors', prefix='/WX',
        map={'true': '', 'false': ':NO'})
-    out = self.GetOutputName(config, expand_special)
-    if out:
-      ldflags.append('/OUT:' + out)
-    pdb = self.GetPDBName(config, expand_special, output_name + '.pdb')
-    if pdb:
-      ldflags.append('/PDB:' + pdb)
-    pgd = self.GetPGDName(config, expand_special)
-    if pgd:
-      ldflags.append('/PGD:' + pgd)
+    if out := self.GetOutputName(config, expand_special):
+      ldflags.append(f'/OUT:{out}')
+    if pdb := self.GetPDBName(config, expand_special, f'{output_name}.pdb'):
+      ldflags.append(f'/PDB:{pdb}')
+    if pgd := self.GetPGDName(config, expand_special):
+      ldflags.append(f'/PGD:{pgd}')
     map_file = self.GetMapFileName(config, expand_special)
-    ld('GenerateMapFile', map={'true': '/MAP:' + map_file if map_file
-        else '/MAP'})
+    ld('GenerateMapFile', map={'true': f'/MAP:{map_file}' if map_file else '/MAP'})
     ld('MapExports', map={'true': '/MAPINFO:EXPORTS'})
     ld('AdditionalOptions', prefix='')
 
     minimum_required_version = self._Setting(
         ('VCLinkerTool', 'MinimumRequiredVersion'), config, default='')
     if minimum_required_version:
-      minimum_required_version = ',' + minimum_required_version
+      minimum_required_version = f',{minimum_required_version}'
     ld('SubSystem',
        map={'1': 'CONSOLE%s' % minimum_required_version,
             '2': 'WINDOWS%s' % minimum_required_version},
@@ -699,10 +692,9 @@ class MsvsSettings(object):
     args = [a.replace('\\', '/').replace('"', '\\"') for a in args]
     args = ["'%s'" % a.replace("'", "'\\''") for a in args]
     bash_cmd = ' '.join(args)
-    cmd = (
+    return (
         'call "%s\\setup_env.bat" && set CYGWIN=nontsec && ' % cygwin_dir +
         'bash -c "%s ; %s"' % (cd, bash_cmd))
-    return cmd
 
   def IsRuleRunUnderCygwin(self, rule):
     """Determine if an action should be run under cygwin. If the variable is
@@ -712,10 +704,7 @@ class MsvsSettings(object):
 
   def _HasExplicitRuleForExtension(self, spec, extension):
     """Determine if there's an explicit rule for a particular extension."""
-    for rule in spec.get('rules', []):
-      if rule['extension'] == extension:
-        return True
-    return False
+    return any(rule['extension'] == extension for rule in spec.get('rules', []))
 
   def HasExplicitIdlRules(self, spec):
     """Determine if there's an explicit rule for idl files. When there isn't we
@@ -789,10 +778,11 @@ class PrecompiledHeader(object):
     if not self._PchHeader():
       return []
     pch_ext = os.path.splitext(self.pch_source)[1]
-    for source in sources:
-      if _LanguageMatchesForPch(os.path.splitext(source)[1], pch_ext):
-        return [(None, None, self.output_obj)]
-    return []
+    return next(
+        ([(None, None, self.output_obj)] for source in sources
+         if _LanguageMatchesForPch(os.path.splitext(source)[1], pch_ext)),
+        [],
+    )
 
   def GetPchBuildCommands(self, arch):
     """Not used on Windows as there are no additional build steps required
@@ -804,7 +794,7 @@ class PrecompiledHeader(object):
     """Get the modified cflags and implicit dependencies that should be used
     for the pch compilation step."""
     if input == self.pch_source:
-      pch_output = ['/Yc' + self._PchHeader()]
+      pch_output = [f'/Yc{self._PchHeader()}']
       if command == 'cxx':
         return ([('cflags_cc', map(expand_special, cflags_cc + pch_output))],
                 self.output_obj, [])
@@ -852,7 +842,7 @@ def _ExtractImportantEnvironment(output_of_set):
   env = {}
   for line in output_of_set.splitlines():
     for envvar in envvars_to_save:
-      if re.match(envvar + '=', line.lower()):
+      if re.match(f'{envvar}=', line.lower()):
         var, setting = line.split('=', 1)
         if envvar == 'path':
           # Our own rules (for running gyp-win-tool) and other actions in
@@ -872,10 +862,9 @@ def _FormatAsEnvironmentBlock(envvar_dict):
   """Format as an 'environment block' directly suitable for CreateProcess.
   Briefly this is a list of key=value\0, terminated by an additional \0. See
   CreateProcess documentation for more details."""
-  block = ''
   nul = '\0'
-  for key, value in envvar_dict.iteritems():
-    block += key + '=' + value + nul
+  block = ''.join(
+      f'{key}={value}{nul}' for key, value in envvar_dict.iteritems())
   block += nul
   return block
 
@@ -904,9 +893,7 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
   generation and use custom environment files prepared by yourself."""
   archs = ('x86', 'x64')
   if generator_flags.get('ninja_use_custom_environment_files', 0):
-    cl_paths = {}
-    for arch in archs:
-      cl_paths[arch] = 'cl.exe'
+    cl_paths = {arch: 'cl.exe' for arch in archs}
     return cl_paths
   vs = GetVSVersion(generator_flags)
   cl_paths = {}
@@ -919,7 +906,7 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
     variables, _ = popen.communicate()
     env = _ExtractImportantEnvironment(variables)
     env_block = _FormatAsEnvironmentBlock(env)
-    f = open_out(os.path.join(toplevel_build_dir, 'environment.' + arch), 'wb')
+    f = open_out(os.path.join(toplevel_build_dir, f'environment.{arch}'), 'wb')
     f.write(env_block)
     f.close()
 
@@ -941,8 +928,7 @@ def VerifyMissingSources(sources, build_dir, generator_flags, gyp_to_ninja):
   if int(generator_flags.get('msvs_error_on_missing_sources', 0)):
     no_specials = filter(lambda x: '$' not in x, sources)
     relative = [os.path.join(build_dir, gyp_to_ninja(s)) for s in no_specials]
-    missing = filter(lambda x: not os.path.exists(x), relative)
-    if missing:
+    if missing := filter(lambda x: not os.path.exists(x), relative):
       # They'll look like out\Release\..\..\stuff\things.cc, so normalize the
       # path for a slightly less crazy looking output.
       cleaned_up = [os.path.normpath(x) for x in missing]

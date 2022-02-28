@@ -77,11 +77,11 @@ class GTestXMLOutFilesTest(gtest_xml_test_utils.GTestXMLTestCase):
 
   def DeleteFilesAndDir(self):
     try:
-      os.remove(os.path.join(self.output_dir_, GTEST_OUTPUT_1_TEST + ".xml"))
+      os.remove(os.path.join(self.output_dir_, f'{GTEST_OUTPUT_1_TEST}.xml'))
     except os.error:
       pass
     try:
-      os.remove(os.path.join(self.output_dir_, GTEST_OUTPUT_2_TEST + ".xml"))
+      os.remove(os.path.join(self.output_dir_, f'{GTEST_OUTPUT_2_TEST}.xml'))
     except os.error:
       pass
     try:
@@ -108,9 +108,9 @@ class GTestXMLOutFilesTest(gtest_xml_test_utils.GTestXMLTestCase):
     #   gtest_xml_outfiles_test_.  To account for this possibillity, we
     #   allow both names in the following code.  We should remove this
     #   hack when Chandler Carruth's libtool replacement tool is ready.
-    output_file_name1 = test_name + ".xml"
+    output_file_name1 = f'{test_name}.xml'
     output_file1 = os.path.join(self.output_dir_, output_file_name1)
-    output_file_name2 = 'lt-' + output_file_name1
+    output_file_name2 = f'lt-{output_file_name1}'
     output_file2 = os.path.join(self.output_dir_, output_file_name2)
     self.assert_(os.path.isfile(output_file1) or os.path.isfile(output_file2),
                  output_file1)

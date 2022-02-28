@@ -87,10 +87,7 @@ def Run(command):
   """Runs a command; returns 1 if it was killed by a signal, or 0 otherwise."""
 
   p = gtest_test_utils.Subprocess(command, env=environ)
-  if p.terminated_by_signal:
-    return 1
-  else:
-    return 0
+  return 1 if p.terminated_by_signal else 0
 
 
 # The tests.
@@ -133,11 +130,7 @@ class GTestBreakOnFailureUnitTest(gtest_test_utils.TestCase):
     if flag:
       command.append(flag)
 
-    if expect_seg_fault:
-      should_or_not = 'should'
-    else:
-      should_or_not = 'should not'
-
+    should_or_not = 'should' if expect_seg_fault else 'should not'
     has_seg_fault = Run(command)
 
     SetEnvVar(BREAK_ON_FAILURE_ENV_VAR, None)

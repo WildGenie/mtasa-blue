@@ -297,7 +297,7 @@ def _FloatDecoder():
     if ((float_bytes[3] in '\x7F\xFF')
         and (float_bytes[2] >= '\x80')):
       # If at least one significand bit is set...
-      if float_bytes[0:3] != '\x00\x00\x80':
+      if float_bytes[:3] != '\x00\x00\x80':
         return (_NAN, new_pos)
       # If sign bit is set...
       if float_bytes[3] == '\xFF':
@@ -329,9 +329,8 @@ def _DoubleDecoder():
     # If this value has all its exponent bits set and at least one significand
     # bit set, it's not a number.  In Python 2.4, struct.unpack will treat it
     # as inf or -inf.  To avoid that, we treat it specially.
-    if ((double_bytes[7] in '\x7F\xFF')
-        and (double_bytes[6] >= '\xF0')
-        and (double_bytes[0:7] != '\x00\x00\x00\x00\x00\x00\xF0')):
+    if (double_bytes[7] in '\x7F\xFF' and double_bytes[6] >= '\xF0'
+        and double_bytes[:7] != '\x00\x00\x00\x00\x00\x00\xF0'):
       return (_NAN, new_pos)
 
     # Note that we expect someone up-stack to catch struct.error and convert

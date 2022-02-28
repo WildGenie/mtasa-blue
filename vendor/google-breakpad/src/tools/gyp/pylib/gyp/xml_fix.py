@@ -29,7 +29,7 @@ def _Replacement_writexml(self, writer, indent="", addindent="", newl=""):
   # indent = current indentation
   # addindent = indentation to add to higher levels
   # newl = newline string
-  writer.write(indent+"<" + self.tagName)
+  writer.write(f'{indent}<{self.tagName}')
 
   attrs = self._get_attributes()
   a_names = attrs.keys()

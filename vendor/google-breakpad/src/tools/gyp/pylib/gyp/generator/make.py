@@ -86,7 +86,7 @@ def CalculateVariables(default_variables, params):
     COMPILABLE_EXTENSIONS.update({'.m': 'objc', '.mm' : 'objcxx'})
   else:
     operating_system = flavor
-    if flavor == 'android':
+    if operating_system == 'android':
       operating_system = 'linux'  # Keep this legacy behavior for now.
     default_variables.setdefault('OS', operating_system)
     default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
@@ -565,10 +565,7 @@ COMPILABLE_EXTENSIONS = {
 
 def Compilable(filename):
   """Return true if the file is compilable (should be in OBJS)."""
-  for res in (filename.endswith(e) for e in COMPILABLE_EXTENSIONS):
-    if res:
-      return True
-  return False
+  return any(filename.endswith(e) for e in COMPILABLE_EXTENSIONS)
 
 
 def Linkable(filename):
@@ -578,7 +575,7 @@ def Linkable(filename):
 
 def Target(filename):
   """Translate a compilable filename to its .o target."""
-  return os.path.splitext(filename)[0] + '.o'
+  return f'{os.path.splitext(filename)[0]}.o'
 
 
 def EscapeShellArgument(s):
@@ -732,8 +729,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       self.alias = self.output
       install_path = self.output
 
-    self.WriteLn("TOOLSET := " + self.toolset)
-    self.WriteLn("TARGET := " + self.target)
+    self.WriteLn(f"TOOLSET := {self.toolset}")
+    self.WriteLn(f"TARGET := {self.target}")
 
     # Actions must come first, since they can generate more OBJs for use below.
     if 'actions' in spec:
@@ -764,10 +761,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
           gyp.xcode_emulation.MacPrefixHeader(
               self.xcode_settings, lambda p: Sourceify(self.Absolutify(p)),
               self.Pchify))
-      sources = filter(Compilable, all_sources)
-      if sources:
+      if sources := filter(Compilable, all_sources):
         self.WriteLn(SHARED_HEADER_SUFFIX_RULES_COMMENT1)
-        extensions = set([os.path.splitext(s)[1] for s in sources])
+        extensions = {os.path.splitext(s)[1] for s in sources}
         for ext in extensions:
           if ext in self.suffix_rules_srcdir:
             self.WriteLn(self.suffix_rules_srcdir[ext])
@@ -824,7 +820,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     self.WriteLn('.PHONY: all')
     self.WriteLn('all:')
     if makefile_path:
-      makefile_path = ' -C ' + makefile_path
+      makefile_path = f' -C {makefile_path}'
     self.WriteLn('\t$(MAKE)%s %s' % (makefile_path, ' '.join(targets)))
     self.fp.close()
 
@@ -852,8 +848,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       # Collect the output dirs we'll need.
       dirs = set()
       for out in outputs:
-        dir = os.path.split(out)[0]
-        if dir:
+        if dir := os.path.split(out)[0]:
           dirs.add(dir)
       if int(action.get('process_outputs_as_sources', False)):
         extra_sources += outputs
@@ -870,7 +865,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteLn('quiet_cmd_%s = ACTION %s $@' % (name, action['message']))
       else:
         self.WriteLn('quiet_cmd_%s = ACTION %s $@' % (name, name))
-      if len(dirs) > 0:
+      if dirs:
         command = 'mkdir -p %s' % ' '.join(dirs) + '; ' + command
 
       cd_action = 'cd %s; ' % Sourceify(self.path or '.')

@@ -589,13 +589,8 @@ typedef Predicate%(n)sTest ASSERT_PRED%(n)sTest;
       of a successful EXPECT_PRED_FORMATn() that takes a functor
       whose arguments have built-in types."""
 
-    if use_assert:
-      assrt = 'ASSERT'  # 'assert' is reserved, so we cannot use
-                        # that identifier here.
-    else:
-      assrt = 'EXPECT'
-
-    assertion = assrt + '_PRED'
+    assrt = 'ASSERT' if use_assert else 'EXPECT'
+    assertion = f'{assrt}_PRED'
 
     if use_format:
       pred_format = 'PredFormat'
@@ -612,28 +607,17 @@ typedef Predicate%(n)sTest ASSERT_PRED%(n)sTest;
       pred_format_type = 'function'
       pred_format += 'Function%(n)s'
       if not use_format:
-        if use_user_type:
-          pred_format += 'Bool'
-        else:
-          pred_format += 'Int'
-
+        pred_format += 'Bool' if use_user_type else 'Int'
     test_name = pred_format_type.title()
 
     if use_user_type:
       arg_type = 'user-defined type (Bool)'
       test_name += 'OnUserType'
-      if expect_failure:
-        arg = 'Bool(n%s_++)'
-      else:
-        arg = 'Bool(++n%s_)'
+      arg = 'Bool(n%s_++)' if expect_failure else 'Bool(++n%s_)'
     else:
       arg_type = 'built-in type (int)'
       test_name += 'OnBuiltInType'
-      if expect_failure:
-        arg = 'n%s_++'
-      else:
-        arg = '++n%s_'
-
+      arg = 'n%s_++' if expect_failure else '++n%s_'
     if expect_failure:
       successful_or_failed = 'failed'
       expected_or_not = 'expected.'

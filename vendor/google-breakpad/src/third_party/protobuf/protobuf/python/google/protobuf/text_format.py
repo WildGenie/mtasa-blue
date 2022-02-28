@@ -297,11 +297,10 @@ def _MergeScalarField(tokenizer, message, field):
       message.Extensions[field].append(value)
     else:
       getattr(message, field.name).append(value)
+  elif field.is_extension:
+    message.Extensions[field] = value
   else:
-    if field.is_extension:
-      message.Extensions[field] = value
-    else:
-      setattr(message, field.name, value)
+    setattr(message, field.name, value)
 
 
 class _Tokenizer(object):
@@ -649,8 +648,7 @@ class _Tokenizer(object):
       self.token = ''
       return
 
-    match = self._TOKEN.match(self._current_line, self._column)
-    if match:
+    if match := self._TOKEN.match(self._current_line, self._column):
       token = match.group(0)
       self.token = token
     else:

@@ -337,14 +337,11 @@ class MockAnything:
     """
 
     # If the list of expected calls is not empty, raise an exception
-    if self._expected_calls_queue:
-      # The last MultipleTimesGroup is not popped from the queue.
-      if (len(self._expected_calls_queue) == 1 and
-          isinstance(self._expected_calls_queue[0], MultipleTimesGroup) and
-          self._expected_calls_queue[0].IsSatisfied()):
-        pass
-      else:
-        raise ExpectedMethodCallsError(self._expected_calls_queue)
+    if self._expected_calls_queue and (
+        len(self._expected_calls_queue) != 1
+        or not isinstance(self._expected_calls_queue[0], MultipleTimesGroup)
+        or not self._expected_calls_queue[0].IsSatisfied()):
+      raise ExpectedMethodCallsError(self._expected_calls_queue)
 
   def _Reset(self):
     """Reset the state of this mock to record mode with an empty queue."""
@@ -616,8 +613,7 @@ class MockMethod(object):
     params = ', '.join(
         [repr(p) for p in self._params or []] +
         ['%s=%r' % x for x in sorted((self._named_params or {}).items())])
-    desc = "%s(%s) -> %r" % (self._name, params, self._return_value)
-    return desc
+    return "%s(%s) -> %r" % (self._name, params, self._return_value)
 
   def __eq__(self, rhs):
     """Test whether this MockMethod is equivalent to another MockMethod.
@@ -1066,11 +1062,7 @@ class And(Comparator):
       bool
     """
 
-    for comparator in self._comparators:
-      if not comparator.equals(rhs):
-        return False
-
-    return True
+    return all(comparator.equals(rhs) for comparator in self._comparators)
 
   def __repr__(self):
     return '<AND %s>' % str(self._comparators)
@@ -1099,11 +1091,7 @@ class Or(Comparator):
       bool
     """
 
-    for comparator in self._comparators:
-      if comparator.equals(rhs):
-        return True
-
-    return False
+    return any(comparator.equals(rhs) for comparator in self._comparators)
 
   def __repr__(self):
     return '<OR %s>' % str(self._comparators)
@@ -1309,11 +1297,10 @@ class MultipleTimesGroup(MethodGroup):
         mock_method._call_queue.appendleft(self)
         return self, method
 
-    if self.IsSatisfied():
-      next_method = mock_method._PopNextMethod();
-      return next_method, None
-    else:
+    if not self.IsSatisfied():
       raise UnexpectedMethodCallError(mock_method, self)
+    next_method = mock_method._PopNextMethod();
+    return next_method, None
 
   def IsSatisfied(self):
     """Return True if all methods in this group are called at least once."""
@@ -1370,9 +1357,7 @@ class MoxMetaTestBase(type):
     """
     def new_method(self, *args, **kwargs):
       mox_obj = getattr(self, 'mox', None)
-      cleanup_mox = False
-      if mox_obj and isinstance(mox_obj, Mox):
-        cleanup_mox = True
+      cleanup_mox = bool(mox_obj and isinstance(mox_obj, Mox))
       try:
         func(self, *args, **kwargs)
       finally:

@@ -177,14 +177,14 @@ class AndroidMkWriter(object):
     self.WriteLn('include $(CLEAR_VARS)\n')
 
     # Module class and name.
-    self.WriteLn('LOCAL_MODULE_CLASS := ' + self.android_class)
-    self.WriteLn('LOCAL_MODULE := ' + self.android_module)
+    self.WriteLn(f'LOCAL_MODULE_CLASS := {self.android_class}')
+    self.WriteLn(f'LOCAL_MODULE := {self.android_module}')
     # Only emit LOCAL_MODULE_STEM if it's different to LOCAL_MODULE.
     # The library module classes fail if the stem is set. ComputeOutputParts
     # makes sure that stem == modulename in these cases.
     if self.android_stem != self.android_module:
       self.WriteLn('LOCAL_MODULE_STEM := ' + self.android_stem)
-    self.WriteLn('LOCAL_MODULE_SUFFIX := ' + self.android_suffix)
+    self.WriteLn(f'LOCAL_MODULE_SUFFIX := {self.android_suffix}')
     self.WriteLn('LOCAL_MODULE_TAGS := optional')
     if self.toolset == 'host':
       self.WriteLn('LOCAL_IS_HOST_MODULE := true')
@@ -267,8 +267,7 @@ class AndroidMkWriter(object):
         if not out.startswith('$'):
           print ('WARNING: Action for target "%s" writes output to local path '
                  '"%s".' % (self.target, out))
-        dir = os.path.split(out)[0]
-        if dir:
+        if dir := os.path.split(out)[0]:
           dirs.add(dir)
       if int(action.get('process_outputs_as_sources', False)):
         extra_sources += outputs
@@ -364,8 +363,7 @@ class AndroidMkWriter(object):
           if not out.startswith('$'):
             print ('WARNING: Rule for target %s writes output to local path %s'
                    % (self.target, out))
-          dir = os.path.dirname(out)
-          if dir:
+          if dir := os.path.dirname(out):
             dirs.add(dir)
         extra_outputs += outputs
         if int(rule.get('process_outputs_as_sources', False)):
@@ -425,7 +423,7 @@ class AndroidMkWriter(object):
     """
     self.WriteLn('### Generated for copy rule.')
 
-    variable = make.StringToMakefileVariable(self.relative_target + '_copies')
+    variable = make.StringToMakefileVariable(f'{self.relative_target}_copies')
     outputs = []
     for copy in copies:
       for path in copy['files']:

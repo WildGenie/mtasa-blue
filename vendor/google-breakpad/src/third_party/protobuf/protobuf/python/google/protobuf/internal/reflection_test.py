@@ -672,7 +672,7 @@ class ReflectionTest(unittest.TestCase):
     self.assertEqual([5, 25, 20, 15, 30], proto.repeated_int32[:])
 
     # Test slice assignment with an iterator
-    proto.repeated_int32[1:4] = (i for i in xrange(3))
+    proto.repeated_int32[1:4] = iter(xrange(3))
     self.assertEqual([5, 0, 1, 2, 30], proto.repeated_int32)
 
     # Test slice assignment.
@@ -680,9 +680,7 @@ class ReflectionTest(unittest.TestCase):
     self.assertEqual([5, 35, 40, 45, 30], proto.repeated_int32)
 
     # Test that we can use the field as an iterator.
-    result = []
-    for i in proto.repeated_int32:
-      result.append(i)
+    result = list(proto.repeated_int32)
     self.assertEqual([5, 35, 40, 45, 30], result)
 
     # Test single deletion.
@@ -795,9 +793,7 @@ class ReflectionTest(unittest.TestCase):
         [m0], proto.repeated_nested_message[:1])
 
     # Test that we can use the field as an iterator.
-    result = []
-    for i in proto.repeated_nested_message:
-      result.append(i)
+    result = list(proto.repeated_nested_message)
     self.assertListsEqual([m0, m1, m2, m3, m4], result)
 
     # Test single deletion.
